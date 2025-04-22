@@ -10,6 +10,7 @@ $confirmPassword = trim($_POST['confirm-password']);
 if ($password !== $confirmPassword) {
     echo 'Hesla se neshodují.';
     echo "<br><a href='register.php'>Registrovat se</a>";
+    exit;
 }
 
 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -23,14 +24,16 @@ try {
     if ($result->num_rows > 0) {
         echo 'Uživatel s tímto emailem nebo uživatelským jménem již existuje.';
         echo "<br><a href='register.php'>Registrovat se</a>";
-    }
+        exit;
+    }    
 
-    $insert_query = $conn->prepare('INSERT INTO USERS (user_name, email, user_password) VALUES (?, ?, ?)');
+    $insert_query = $conn->prepare('INSERT INTO USERS (user_name, email, user_password, is_admin) VALUES (?, ?, ?, 0)');
     $insert_query->bind_param('sss', $username, $email, $hashed_password);
 
     if ($insert_query->execute()) {
-        echo 'Registrace proběhla úspěšně! Nyní se můžete přihlásit.';
-        echo "<br><a href='login.php'>Přihlásit se</a>";
+        $_SESSION['register_success'] = "Registrace proběhla úspěšně! Nyní se přihlaste.";
+        header("Location: login.php");
+        exit;
         
     } else {
         echo 'Došlo k chybě při registraci. Zkuste to znovu.';
