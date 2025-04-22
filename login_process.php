@@ -2,29 +2,45 @@
 require 'db_connection.php';
 session_start();
 
-$username = trim($_POST['username']);
-$password = trim($_POST['password']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['email'] ?? '');
+    $password = trim($_POST['password'] ?? '');
 
-try {
-    $stmt = $conn->prepare("SELECT * FROM USERS WHERE email = ?");
-    $stmt->bind_param("s", $username);
+    if (empty($email) || empty($password)) {
+        $_SESSION['login_error'] = "Vyplňte prosím přihlašovací údaje.";
+        header("Location: login.php");
+        exit;
+    }
+
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
-    $user = $result->fetch_assoc();
+    if ($result->num_rows === 1) {
+        $user = $result->fetch_assoc();
 
-    if ($user && password_verify($password, $user['user_password'])) {
-        $_SESSION['user_id'] = $user['user_id'];
-        $_SESSION['username'] = $user['user_name'];
-        echo'Přihlášení proběhlo úspěšně.';
-        echo "<br><a href='account.php'>Do účtu</a>";
+        if (password_verify($password, $user['user_password'])) {
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['username'] = $user['user_name'];
+            $_SESSION['is_admin'] = $user['is_admin'];
+
+            if ($user['is_admin']) {
+                header("Location: admin_dashboard.php");
+            } else {
+                header("Location: index.php");
+            }
+            exit;
+        } else {
+            $_SESSION['login_error'] = "Neplatné údaje.";
+        }
     } else {
-        echo 'Nesprávné uživatelské jméno nebo heslo.';
-        echo "<br><a href='login.php'>Přihlásit se</a>";
+        $_SESSION['login_error'] = "Neplatné údaje.";
     }
 
-} catch (PDOException $e) {
-    echo 'Došlo k chybě při přihlašování. Zkuste to znovu.';
-    echo "<br><a href='login.php'>Přihlásit se</a>";
+    header("Location: login.php");
+    exit;
+} else {
+    header("Location: login.php");
+    exit;
 }
-?>
