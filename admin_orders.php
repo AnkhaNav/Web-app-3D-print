@@ -1,75 +1,109 @@
 <?php
-session_start();
-
-if (!isset($_SESSION['user_id']) || $_SESSION['is_admin'] !== true) {
-    header("Location: /login.php");
-    exit;
-}
-
+require 'admin_check.php';
 require 'db_connection.php';
 
-$sql = "SELECT * FROM orders";
-$result = $conn->query($sql);
+$stmt = $conn->prepare("
+    SELECT o.order_id, o.user_id, o.email, o.order_date, o.order_status, o.price, u.user_name
+    FROM orders o
+    LEFT JOIN users u ON o.user_id = u.user_id
+    ORDER BY o.order_date DESC
+");
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Správa objednávek</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        table.admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        table.admin-table th, table.admin-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+
+        table.admin-table th {
+            background-color: #f4f4f4;
+        }
+
+        .action-form {
+            display: inline-block;
+            margin: 0;
+        }
+
+        .action-form select, .action-form button {
+            padding: 5px;
+        }
+
+        .delete-btn {
+            background-color: #d9534f;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Správa objednávek</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="admin_dashboard.php">Zpět na rozhraní</a></li>
-        </ul>
-    </nav>
-    <main>
-        <table border="1" cellpadding="10" cellspacing="0" style="width: 100%; margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th>ID Objednávky</th>
-                    <th>Uživatel</th>
-                    <th>Email</th>
-                    <th>Datum</th>
-                    <th>Status</th>
-                    <th>Cena</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php while ($row = $result->fetch_assoc()) { ?>
-                <tr>
-                    <td><?= $row['order_id']; ?></td>
-                    <td><?= $row['user_id'] ?: 'Nepřihlášený'; ?></td>
-                    <td><?= $row['email']; ?></td>
-                    <td><?= $row['order_date']; ?></td>
-                    <td>
-                        <form method="POST" action="admin_orders_action.php" style="display: inline;">
-                            <input type="hidden" name="order_id" value="<?= $row['order_id']; ?>">
-                            <select name="status" onchange="this.form.submit()">
-                                <option value="Pending" <?= $row['status'] === 'Pending' ? 'selected' : ''; ?>>Čekající</option>
-                                <option value="In Progress" <?= $row['status'] === 'In Progress' ? 'selected' : ''; ?>>Probíhá</option>
-                                <option value="Completed" <?= $row['status'] === 'Completed' ? 'selected' : ''; ?>>Dokončeno</option>
-                                <option value="Cancelled" <?= $row['status'] === 'Cancelled' ? 'selected' : ''; ?>>Zrušeno</option>
-                            </select>
-                        </form>
-                    </td>
-                    <td><?= $row['total_price']; ?> Kč</td>
-                    <td>
-                        <form method="POST" action="admin_orders_action.php" style="display: inline;">
-                            <input type="hidden" name="order_id" value="<?= $row['order_id']; ?>">
-                            <button type="submit" name="delete">Smazat</button>
-                        </form>
-                    </td>
-                </tr>
-                <?php } ?>
-            </tbody>
-        </table>
-    </main>
+<?php include 'header.php'; ?>
+<main>
+    <h2>Správa objednávek</h2>
+    <a href="admin_dashboard.php" class="back-link">← Zpět na přehled administrace</a>
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Uživatel</th>
+                <th>Datum</th>
+                <th>Stav</th>
+                <th>Cena</th>
+                <th>Akce</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php while ($row = $result->fetch_assoc()): ?>
+            <tr>
+                <td><?= $row['order_id'] ?></td>
+                <td><?= htmlspecialchars($row['email']) ?></td>
+                <td><?= $row['user_name'] ?? '<i>nepřihlášený</i>' ?></td>
+                <td><?= date("j. n. Y H:i", strtotime($row['order_date'])) ?></td>
+                <td>
+                    <form method="POST" action="update_order_status.php" class="action-form">
+                        <input type="hidden" name="order_id" value="<?= $row['order_id'] ?>">
+                        <select name="order_status">
+                            <?php
+                            $statuses = ['čeká na potvrzení', 'zpracováno', 'zaplaceno', 'odesláno', 'dokončeno', 'zrušeno'];
+                            foreach ($statuses as $status):
+                            ?>
+                                <option value="<?= $status ?>" <?= $row['order_status'] === $status ? 'selected' : '' ?>>
+                                    <?= $status ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit">Uložit</button>
+                    </form>
+                </td>
+                <td><?= number_format($row['price'], 2, ',', ' ') ?> Kč</td>
+                <td>
+                    <form method="POST" action="delete_order.php" class="action-form" onsubmit="return confirm('Opravdu smazat objednávku?');">
+                        <input type="hidden" name="order_id" value="<?= $row['order_id'] ?>">
+                        <button type="submit" class="delete-btn">Smazat</button>
+                    </form>
+                </td>
+            </tr>
+        <?php endwhile; ?>
+        </tbody>
+    </table>
+</main>
+<?php include 'footer.php'; ?>
 </body>
 </html>
