@@ -45,7 +45,7 @@
                 <div class="faq-answer">Cena se odvíjí od použitého materiálu, složitosti modelu a jeho objemu. Pro rychlý odhad použijte naši online kalkulačku.</div>
 
                 <div class="faq-item">Jaké soubory podporujete? <span>+</span></div>
-                <div class="faq-answer">Nejčastěji přijímáme formáty STL a OBJ. Pokud máte jiný formát (např. 3MF), kontaktujte nás – pokusíme se jej převést.</div>
+                <div class="faq-answer">Nejčastěji přijímáme formát STL. Pokud máte jiný formát, kontaktujte nás – pokusíme se jej převést.</div>
 
                 <div class="faq-item">Jak dlouho trvá zpracování objednávky? <span>+</span></div>
                 <div class="faq-answer">Standardní doba zpracování je 3–5 pracovních dní v závislosti na náročnosti zakázky. Expresní tisk je možný po domluvě.</div>
